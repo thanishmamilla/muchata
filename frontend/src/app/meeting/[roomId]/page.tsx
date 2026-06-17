@@ -129,10 +129,32 @@ export default function MeetingRoomPage({ params }: MeetingRoomProps) {
     isWaitingRoomEnabled,
     activeSpeakerId,
     pinnedParticipantId,
-    togglePinParticipant
+    togglePinParticipant,
+    selfPeerId
   } = useMeetingStore();
 
   const [mediaReady, setMediaReady] = useState(false);
+
+  // Prevent default body scrolling on mount, restore on unmount
+  useEffect(() => {
+    const originalOverflow = document.body.style.overflow;
+    const originalPosition = document.body.style.position;
+    const originalWidth = document.body.style.width;
+    const originalHeight = document.body.style.height;
+
+    document.body.style.overflow = 'hidden';
+    document.body.style.position = 'fixed';
+    document.body.style.width = '100%';
+    document.body.style.height = '100%';
+
+    return () => {
+      document.body.style.overflow = originalOverflow;
+      document.body.style.position = originalPosition;
+      document.body.style.width = originalWidth;
+      document.body.style.height = originalHeight;
+    };
+  }, []);
+
 
   // WebRTC custom hook
   const {
@@ -348,8 +370,39 @@ export default function MeetingRoomPage({ params }: MeetingRoomProps) {
     return 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3';
   };
 
+  const getMainMobileParticipant = () => {
+    if (isScreenSharing) {
+      return { type: 'local-screen' as const };
+    }
+    
+    // Find pinned remote participant OR pinned self
+    if (pinnedParticipantId) {
+      if (selfPeerId && pinnedParticipantId === selfPeerId) {
+        return { type: 'self' as const };
+      }
+      const p = participants.find(part => part.peerId === pinnedParticipantId);
+      if (p) return { type: 'peer' as const, participant: p };
+    }
+    
+    // Find active speaker remote participant
+    if (activeSpeakerId) {
+      const p = participants.find(part => part.peerId === activeSpeakerId);
+      if (p) return { type: 'peer' as const, participant: p };
+    }
+    
+    // Fallback to first remote participant
+    if (participants.length > 0) {
+      return { type: 'peer' as const, participant: participants[0] };
+    }
+    
+    // Fallback to local self
+    return { type: 'self' as const };
+  };
+
+  const mainMobile = getMainMobileParticipant();
+
   return (
-    <div className="h-screen w-screen bg-[#070b13] flex flex-col text-slate-100 overflow-hidden font-sans">
+    <div className="fixed inset-0 w-full h-full bg-[#070b13] flex flex-col text-slate-100 overflow-hidden font-sans">
       {/* Hidden Remote Audio Feeds to ensure audio plays even when cameras are off */}
       {participants.map((p) => {
         const stream = remoteStreams[p.peerId];
@@ -364,7 +417,7 @@ export default function MeetingRoomPage({ params }: MeetingRoomProps) {
       })}
       
       {/* Top Header */}
-      <header className="h-14 border-b border-slate-900 bg-slate-950 px-6 flex items-center justify-between z-10">
+      <header className="h-12 md:h-14 border-b border-slate-900 bg-slate-950 px-3 md:px-6 flex items-center justify-between z-10 shrink-0">
         <div className="flex items-center gap-3">
           <div className="px-2.5 py-1 bg-slate-800 rounded-md border border-slate-700 text-xs font-semibold font-mono text-slate-300">
             {roomId}
@@ -387,13 +440,13 @@ export default function MeetingRoomPage({ params }: MeetingRoomProps) {
       </header>
 
       {/* Main workspace */}
-      <div className="flex-1 flex overflow-hidden relative">
+      <div className="flex-1 flex overflow-hidden relative min-h-0">
         
         {/* Core Media stream views */}
-        <div className="flex-1 flex flex-col p-4 space-y-4 overflow-hidden relative">
+        <div className="flex-1 flex flex-col min-h-0 p-2 md:p-4 space-y-2 md:space-y-4 overflow-hidden relative">
           
-          {/* Main Grid Wrapper */}
-          <div className={`flex-1 grid ${getGridCols()} gap-4 items-center justify-center overflow-y-auto`}>
+          {/* DESKTOP VIEW: Main Grid Wrapper (hidden on mobile) */}
+          <div className={`hidden md:grid flex-1 ${getGridCols()} gap-4 items-center justify-center overflow-y-auto`}>
             
             {/* Screen sharing / Pin view layout handler */}
             {isScreenSharing ? (
@@ -494,6 +547,173 @@ export default function MeetingRoomPage({ params }: MeetingRoomProps) {
               })}
 
             </div>
+          </div>
+
+          {/* MOBILE VIEW: Presentation + Slider Layout (visible on mobile only, never scrollable) */}
+          <div className="flex md:hidden flex-col flex-1 min-h-0 w-full overflow-hidden space-y-2">
+            {/* Main Presentation Video Card */}
+            <div 
+              onClick={() => {
+                if (pinnedParticipantId) {
+                  togglePinParticipant(pinnedParticipantId);
+                }
+              }}
+              className={`flex-1 min-h-0 w-full rounded-xl bg-slate-950 border border-slate-850 overflow-hidden relative flex items-center justify-center shadow-lg ${pinnedParticipantId ? 'cursor-pointer' : ''}`}
+            >
+              {/* If main is local-screen */}
+              {mainMobile.type === 'local-screen' && (
+                <>
+                  <video
+                    ref={(el) => {
+                      if (el && screenStream) el.srcObject = screenStream;
+                    }}
+                    autoPlay
+                    playsInline
+                    muted
+                    className="h-full w-full object-contain"
+                  />
+                  <div className="absolute bottom-2.5 left-2.5 bg-black/60 backdrop-blur-sm px-2 py-1 rounded text-[10px] font-bold text-white flex items-center gap-1">
+                    <Monitor className="h-3.5 w-3.5 text-blue-400" />
+                    <span>Your presentation</span>
+                  </div>
+                </>
+              )}
+
+              {/* If main is peer */}
+              {mainMobile.type === 'peer' && (() => {
+                const p = mainMobile.participant;
+                const stream = remoteStreams[p.peerId];
+                return (
+                  <>
+                    {stream && !p.isCameraOff ? (
+                      <RemoteVideo
+                        stream={stream}
+                        isCameraOff={p.isCameraOff}
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-slate-900/60">
+                        <div className="h-16 w-16 rounded-full bg-slate-900 border border-slate-800 text-indigo-400 font-bold text-xl flex items-center justify-center shadow-md">
+                          {p.name.charAt(0).toUpperCase()}
+                        </div>
+                        <span className="text-xs text-slate-300 font-semibold">{p.name}</span>
+                      </div>
+                    )}
+                    <div className="absolute bottom-2.5 left-2.5 bg-black/60 backdrop-blur-sm px-2 py-1 rounded text-[10px] font-bold text-white flex items-center gap-1">
+                      <span>{p.name}</span>
+                      {p.isMuted ? <MicOff className="h-3 w-3 text-rose-500" /> : <Mic className="h-3 w-3 text-emerald-400" />}
+                    </div>
+                    {p.handRaised && (
+                      <div className="absolute top-2.5 right-2.5 bg-yellow-500 text-slate-950 p-1.5 rounded-full shadow-md">
+                        <Hand className="h-3.5 w-3.5" />
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
+
+              {/* If main is self */}
+              {mainMobile.type === 'self' && (
+                <>
+                  {localStream && !isVideoMuted ? (
+                    <video
+                      ref={(el) => {
+                        if (el && localStream) el.srcObject = localStream;
+                      }}
+                      autoPlay
+                      playsInline
+                      muted
+                      className="h-full w-full object-cover mirror-video"
+                    />
+                  ) : (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-slate-900/60">
+                      <div className="h-16 w-16 rounded-full bg-slate-900 border border-slate-800 text-slate-500 flex items-center justify-center shadow-md">
+                        <VideoOff className="h-6 w-6" />
+                      </div>
+                      <span className="text-xs text-slate-300 font-semibold">{user?.name || 'You'}</span>
+                    </div>
+                  )}
+                  <div className="absolute bottom-2.5 left-2.5 bg-black/60 backdrop-blur-sm px-2 py-1 rounded text-[10px] font-bold text-white flex items-center gap-1">
+                    <span>{user?.name || 'You'}</span>
+                    {isAudioMuted ? <MicOff className="h-3 w-3 text-rose-500" /> : <Mic className="h-3 w-3 text-emerald-400" />}
+                  </div>
+                  {localHandRaised && (
+                    <div className="absolute top-2.5 right-2.5 bg-yellow-500 text-slate-950 p-1.5 rounded-full shadow-md">
+                      <Hand className="h-3.5 w-3.5" />
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+
+            {/* Horizontal Slider of other feeds (Mobile only) */}
+            {totalGridItems > 1 && (
+              <div 
+                className="flex flex-row overflow-x-auto gap-2 py-1.5 w-full shrink-0 snap-x snap-mandatory scroll-smooth no-scrollbar"
+              >
+                {/* Render self in slider if not shown as main */}
+                {mainMobile.type !== 'self' && (
+                  <div 
+                    onClick={() => {
+                      if (selfPeerId) {
+                        togglePinParticipant(selfPeerId);
+                      }
+                    }}
+                    className="w-28 aspect-video rounded-lg bg-slate-950 border border-slate-800 overflow-hidden shrink-0 relative shadow snap-start cursor-pointer active:scale-95 transition-transform"
+                  >
+                    {localStream && !isVideoMuted ? (
+                      <video
+                        ref={(el) => {
+                          if (el && localStream) el.srcObject = localStream;
+                        }}
+                        autoPlay
+                        playsInline
+                        muted
+                        className="h-full w-full object-cover mirror-video"
+                      />
+                    ) : (
+                      <div className="absolute inset-0 flex items-center justify-center bg-slate-900">
+                        <span className="text-[10px] text-slate-500 font-bold">You</span>
+                      </div>
+                    )}
+                    <div className="absolute bottom-1 left-1 bg-black/60 px-1.5 py-0.5 rounded text-[8px] text-white">
+                      You
+                    </div>
+                  </div>
+                )}
+
+                {/* Render other peers */}
+                {participants.map((p) => {
+                  if (mainMobile.type === 'peer' && mainMobile.participant.peerId === p.peerId) {
+                    return null; // Skip if already shown in main video panel
+                  }
+                  const stream = remoteStreams[p.peerId];
+                  return (
+                    <div
+                      key={`mobile-slide-${p.peerId}`}
+                      onClick={() => togglePinParticipant(p.peerId)}
+                      className="w-28 aspect-video rounded-lg bg-slate-950 border border-slate-800 overflow-hidden shrink-0 relative shadow snap-start cursor-pointer active:scale-95 transition-transform"
+                    >
+                      {stream && !p.isCameraOff ? (
+                        <RemoteVideo
+                          stream={stream}
+                          isCameraOff={p.isCameraOff}
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        <div className="absolute inset-0 flex items-center justify-center bg-slate-900 text-indigo-400 font-bold text-xs">
+                          {p.name.charAt(0).toUpperCase()}
+                        </div>
+                      )}
+                      <div className="absolute bottom-1 left-1 bg-black/60 px-1.5 py-0.5 rounded text-[8px] text-white flex items-center gap-0.5">
+                        <span>{p.name}</span>
+                        {p.isMuted && <MicOff className="h-2 w-2 text-rose-500" />}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
 
@@ -737,21 +957,21 @@ export default function MeetingRoomPage({ params }: MeetingRoomProps) {
       </div>
 
       {/* Bottom Control Bar */}
-      <footer className="h-16 md:h-20 bg-slate-950 border-t border-slate-900 px-3 md:px-6 flex items-center justify-between z-10">
+      <footer className="h-14 md:h-20 bg-slate-950 border-t border-slate-900 px-2 md:px-6 flex items-center justify-between z-10 shrink-0">
         
         {/* Left: display metadata */}
-        <div className="flex items-center gap-1 hidden md:flex">
+        <div className="flex items-center gap-1 hidden md:flex shrink-0">
           <span className="text-sm font-semibold text-white">Muchhata.ai</span>
           <span className="text-slate-600 font-bold">•</span>
           <span className="text-xs text-slate-400 font-semibold font-mono">{roomId}</span>
         </div>
 
         {/* Center: Main call toggles */}
-        <div className="flex items-center gap-2 md:gap-4 mx-auto md:mx-0">
+        <div className="flex items-center gap-1.5 md:gap-4 mx-auto md:mx-0 flex-nowrap shrink-0">
           {/* Microphone */}
           <button
             onClick={handleToggleMic}
-            className={`p-2.5 md:p-3.5 rounded-full border transition-all cursor-pointer ${isAudioMuted ? 'bg-rose-600/15 border-rose-500/30 text-rose-400 hover:bg-rose-600/25' : 'bg-slate-900 border-slate-800 hover:bg-slate-850 text-slate-300'}`}
+            className={`p-2 md:p-3.5 rounded-full border transition-all cursor-pointer ${isAudioMuted ? 'bg-rose-600/15 border-rose-500/30 text-rose-400 hover:bg-rose-600/25' : 'bg-slate-900 border-slate-800 hover:bg-slate-850 text-slate-300'}`}
             title={isAudioMuted ? 'Unmute microphone' : 'Mute microphone'}
           >
             {isAudioMuted ? <MicOff className="h-4 w-4 md:h-5 md:w-5" /> : <Mic className="h-4 w-4 md:h-5 md:w-5" />}
@@ -760,7 +980,7 @@ export default function MeetingRoomPage({ params }: MeetingRoomProps) {
           {/* Camera */}
           <button
             onClick={handleToggleCam}
-            className={`p-2.5 md:p-3.5 rounded-full border transition-all cursor-pointer ${isVideoMuted ? 'bg-rose-600/15 border-rose-500/30 text-rose-400 hover:bg-rose-600/25' : 'bg-slate-900 border-slate-800 hover:bg-slate-850 text-slate-300'}`}
+            className={`p-2 md:p-3.5 rounded-full border transition-all cursor-pointer ${isVideoMuted ? 'bg-rose-600/15 border-rose-500/30 text-rose-450 hover:bg-rose-600/25' : 'bg-slate-900 border-slate-800 hover:bg-slate-850 text-slate-300'}`}
             title={isVideoMuted ? 'Turn webcam on' : 'Turn webcam off'}
           >
             {isVideoMuted ? <VideoOff className="h-4 w-4 md:h-5 md:w-5" /> : <VideoIcon className="h-4 w-4 md:h-5 md:w-5" />}
@@ -769,7 +989,7 @@ export default function MeetingRoomPage({ params }: MeetingRoomProps) {
           {/* Screen Share */}
           <button
             onClick={handleToggleScreen}
-            className={`p-2.5 md:p-3.5 rounded-full border transition-all cursor-pointer ${isScreenSharing ? 'bg-blue-600 border-blue-500 text-white hover:bg-blue-500' : 'bg-slate-900 border-slate-800 hover:bg-slate-850 text-slate-300'}`}
+            className={`p-2 md:p-3.5 rounded-full border transition-all cursor-pointer ${isScreenSharing ? 'bg-blue-600 border-blue-500 text-white hover:bg-blue-500' : 'bg-slate-900 border-slate-800 hover:bg-slate-850 text-slate-300'}`}
             title={isScreenSharing ? 'Stop screen sharing' : 'Share screen'}
           >
             <Monitor className="h-4 w-4 md:h-5 md:w-5" />
@@ -778,7 +998,7 @@ export default function MeetingRoomPage({ params }: MeetingRoomProps) {
           {/* Raise Hand */}
           <button
             onClick={handleToggleHand}
-            className={`p-2.5 md:p-3.5 rounded-full border transition-all cursor-pointer ${localHandRaised ? 'bg-yellow-500/20 border-yellow-500/35 text-yellow-400 hover:bg-yellow-500/30' : 'bg-slate-900 border-slate-800 hover:bg-slate-850 text-slate-300'}`}
+            className={`p-2 md:p-3.5 rounded-full border transition-all cursor-pointer ${localHandRaised ? 'bg-yellow-500/20 border-yellow-500/35 text-yellow-400 hover:bg-yellow-500/30' : 'bg-slate-900 border-slate-800 hover:bg-slate-850 text-slate-300'}`}
             title="Raise hand"
           >
             <Hand className="h-4 w-4 md:h-5 md:w-5" />
@@ -787,7 +1007,7 @@ export default function MeetingRoomPage({ params }: MeetingRoomProps) {
           {/* End Call */}
           <button
             onClick={handleLeaveRoom}
-            className="p-2.5 md:p-3.5 rounded-full bg-rose-600 hover:bg-rose-500 text-white shadow-lg shadow-rose-600/20 transition-all cursor-pointer border border-rose-550 hover:scale-105"
+            className="p-2 md:p-3.5 rounded-full bg-rose-600 hover:bg-rose-500 text-white shadow-lg shadow-rose-600/20 transition-all cursor-pointer border border-rose-550 hover:scale-105 shrink-0"
             title="Leave meeting"
           >
             <PhoneOff className="h-4 w-4 md:h-5 md:w-5" />
@@ -795,10 +1015,10 @@ export default function MeetingRoomPage({ params }: MeetingRoomProps) {
         </div>
 
         {/* Right: Drawer toggles */}
-        <div className="flex items-center gap-1.5 md:gap-3">
+        <div className="flex items-center gap-1 md:gap-3 flex-nowrap shrink-0">
           <button
             onClick={() => setActiveTab(activeTab === 'chat' ? null : 'chat')}
-            className={`p-2 md:p-2.5 rounded-lg border transition-all cursor-pointer relative ${activeTab === 'chat' ? 'bg-blue-600/15 border-blue-500/30 text-blue-400' : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white'}`}
+            className={`p-1.5 md:p-2.5 rounded-lg border transition-all cursor-pointer relative ${activeTab === 'chat' ? 'bg-blue-600/15 border-blue-500/30 text-blue-400' : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white'}`}
           >
             <MessageSquare className="h-4 w-4 md:h-4.5 md:w-4.5" />
             {chatMessages.length > 0 && activeTab !== 'chat' && (
@@ -808,7 +1028,7 @@ export default function MeetingRoomPage({ params }: MeetingRoomProps) {
 
           <button
             onClick={() => setActiveTab(activeTab === 'participants' ? null : 'participants')}
-            className={`p-2 md:p-2.5 rounded-lg border transition-all cursor-pointer relative ${activeTab === 'participants' ? 'bg-blue-600/15 border-blue-500/30 text-blue-400' : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white'}`}
+            className={`p-1.5 md:p-2.5 rounded-lg border transition-all cursor-pointer relative ${activeTab === 'participants' ? 'bg-blue-600/15 border-blue-550/30 text-blue-400' : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white'}`}
           >
             <Users className="h-4 w-4 md:h-4.5 md:w-4.5" />
             {waitingQueue.length > 0 && (
@@ -821,14 +1041,13 @@ export default function MeetingRoomPage({ params }: MeetingRoomProps) {
           {isHost && (
             <button
               onClick={() => setActiveTab(activeTab === 'settings' ? null : 'settings')}
-              className={`p-2 md:p-2.5 rounded-lg border transition-all cursor-pointer ${activeTab === 'settings' ? 'bg-blue-600/15 border-blue-500/30 text-blue-400' : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white'}`}
+              className={`p-1.5 md:p-2.5 rounded-lg border transition-all cursor-pointer ${activeTab === 'settings' ? 'bg-blue-600/15 border-blue-500/30 text-blue-400' : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white'}`}
             >
               <Settings className="h-4 w-4 md:h-4.5 md:w-4.5" />
             </button>
           )}
         </div>
       </footer>
-
     </div>
   );
 }

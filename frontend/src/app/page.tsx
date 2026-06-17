@@ -187,7 +187,7 @@ export default function LobbyPage() {
             <Video className="h-5 w-5" />
           </div>
           <span className="font-bold text-lg tracking-tight bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent">
-            MeetCore
+            Muchhata
           </span>
         </div>
 
@@ -438,7 +438,7 @@ export default function LobbyPage() {
       {/* Footer */}
       <footer className="py-6 border-t border-slate-800/40 text-center text-xs text-slate-500 bg-[#070b13]">
         <div className="flex justify-center items-center gap-1">
-          <span>MeetCore Enterprise Call Manager v1.0.0</span>
+          <span>Muchhata Enterprise Call Manager v1.0.0</span>
           <span>•</span>
           <a href="#" className="hover:underline">Documentation</a>
           <span>•</span>
