@@ -38,30 +38,18 @@ interface RemoteAudioProps {
 
 const RemoteAudio = ({ stream, sinkId }: RemoteAudioProps) => {
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  
+  const tracks = stream.getTracks();
+  const trackIds = tracks.map(t => t.id).join(',');
 
   useEffect(() => {
     if (audioRef.current && stream) {
-      const handleAddTrack = () => {
-        if (audioRef.current) {
-          audioRef.current.srcObject = stream;
-          audioRef.current.play().catch(console.warn);
-        }
-      };
-
-      // Set initially
       audioRef.current.srcObject = stream;
       audioRef.current.play().catch((err) => {
         console.warn('Audio play failed (waiting for user interaction):', err);
       });
-
-      // Listen for future track additions (e.g., audio track arriving after video track)
-      stream.addEventListener('addtrack', handleAddTrack);
-
-      return () => {
-        stream.removeEventListener('addtrack', handleAddTrack);
-      };
     }
-  }, [stream]);
+  }, [stream, trackIds]);
 
   useEffect(() => {
     const audioEl = audioRef.current;
@@ -88,24 +76,14 @@ interface RemoteVideoProps {
 const RemoteVideo = ({ stream, isCameraOff, className }: RemoteVideoProps) => {
   const videoRef = useRef<HTMLVideoElement | null>(null);
 
+  const tracks = stream.getTracks();
+  const trackIds = tracks.map(t => t.id).join(',');
+
   useEffect(() => {
     if (videoRef.current && stream && !isCameraOff) {
-      const handleAddTrack = () => {
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-        }
-      };
-
       videoRef.current.srcObject = stream;
-
-      // Listen for future track additions (e.g., video track arriving after audio track)
-      stream.addEventListener('addtrack', handleAddTrack);
-
-      return () => {
-        stream.removeEventListener('addtrack', handleAddTrack);
-      };
     }
-  }, [stream, isCameraOff]);
+  }, [stream, trackIds, isCameraOff]);
 
   return (
     <video

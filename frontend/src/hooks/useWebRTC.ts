@@ -281,7 +281,19 @@ export const useWebRTC = (roomSlug: string, guestName?: string) => {
     // Track stream reception
     pc.ontrack = (event) => {
       console.log('Received remote track from peer:', peerId, event.track.kind);
-      const remoteStream = event.streams[0] || new MediaStream();
+      
+      let remoteStream = streamMapRef.current[peerId];
+      if (!remoteStream) {
+        remoteStream = event.streams[0] || new MediaStream();
+      }
+      
+      if (event.track) {
+        const hasTrack = remoteStream.getTracks().some(t => t.id === event.track.id);
+        if (!hasTrack) {
+          remoteStream.addTrack(event.track);
+        }
+      }
+      
       addRemoteStream(peerId, remoteStream);
     };
 
