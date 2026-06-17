@@ -96,6 +96,29 @@ const RemoteVideo = ({ stream, isCameraOff, className }: RemoteVideoProps) => {
   );
 };
 
+const RemoteScreenShareVideo = ({ stream }: { stream: MediaStream }) => {
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+
+  const tracks = stream.getTracks();
+  const trackIds = tracks.map(t => t.id).join(',');
+
+  useEffect(() => {
+    if (videoRef.current && stream) {
+      videoRef.current.srcObject = stream;
+      videoRef.current.play().catch(console.warn);
+    }
+  }, [stream, trackIds]);
+
+  return (
+    <video
+      ref={videoRef}
+      autoPlay
+      playsInline
+      className="h-full w-full object-contain"
+    />
+  );
+};
+
 export default function MeetingRoomPage({ params }: MeetingRoomProps) {
   const { roomId } = use(params);
   const router = useRouter();
@@ -137,6 +160,7 @@ export default function MeetingRoomPage({ params }: MeetingRoomProps) {
   // WebRTC custom hook
   const {
     remoteStreams,
+    remoteScreenStreams,
     diagnostics,
     sendMessage,
     updateStatus,
@@ -325,8 +349,13 @@ export default function MeetingRoomPage({ params }: MeetingRoomProps) {
 
   // Calculate dynamic layout classes
   const totalGridItems = participants.length + 1; // peers + self
+  const sharingPeerId = Object.keys(remoteScreenStreams).find(peerId => {
+    const stream = remoteScreenStreams[peerId];
+    return stream && stream.getVideoTracks().length > 0;
+  });
+
   const getGridCols = () => {
-    if (isScreenSharing || Object.keys(remoteStreams).some(peerId => pinnedParticipantId === peerId)) {
+    if (isScreenSharing || sharingPeerId || Object.keys(remoteStreams).some(peerId => pinnedParticipantId === peerId)) {
       return 'grid-cols-1 lg:grid-cols-12';
     }
     if (totalGridItems <= 1) return 'grid-cols-1';
@@ -399,10 +428,20 @@ export default function MeetingRoomPage({ params }: MeetingRoomProps) {
                   Your screen presentation
                 </div>
               </div>
+            ) : sharingPeerId && remoteScreenStreams[sharingPeerId] ? (
+              <div className="lg:col-span-8 h-full rounded-xl bg-black border border-slate-900 overflow-hidden relative flex items-center justify-center shadow-lg">
+                <RemoteScreenShareVideo stream={remoteScreenStreams[sharingPeerId]} />
+                <div className="absolute top-4 left-4 bg-black/60 backdrop-blur-sm border border-slate-800 px-3 py-1.5 rounded-lg text-xs font-bold text-white flex items-center gap-1.5">
+                  <Monitor className="h-3.5 w-3.5 text-blue-400" />
+                  <span>
+                    {`${participants.find(p => p.peerId === sharingPeerId)?.name || 'Peer'}'s screen presentation`}
+                  </span>
+                </div>
+              </div>
             ) : null}
 
             {/* Sub-grid of feeds */}
-            <div className={`h-full ${isScreenSharing ? 'lg:col-span-4 flex flex-col space-y-4 overflow-y-auto' : 'col-span-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4'}`}>
+            <div className={`h-full ${isScreenSharing || sharingPeerId ? 'lg:col-span-4 flex flex-col space-y-4 overflow-y-auto' : 'col-span-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4'}`}>
               
               {/* Local Stream feed card */}
               <div className={`relative aspect-video rounded-xl bg-slate-950 border border-slate-800/80 overflow-hidden shadow-md group ${activeSpeakerId === null && !isAudioMuted ? 'active-speaker-ring' : ''}`}>

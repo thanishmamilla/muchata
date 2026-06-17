@@ -27,12 +27,14 @@ export interface PeerDiagnostics {
 
 export const useWebRTC = (roomSlug: string, guestName?: string, mediaReady: boolean = false) => {
   const [remoteStreams, setRemoteStreams] = useState<Record<string, MediaStream>>({});
+  const [remoteScreenStreams, setRemoteScreenStreams] = useState<Record<string, MediaStream>>({});
   const [diagnostics, setDiagnostics] = useState<Record<string, PeerDiagnostics>>({});
   
   const socketRef = useRef<Socket | null>(null);
   const peersRef = useRef<Map<string, RTCPeerConnection>>(new Map());
   const sendersRef = useRef<Map<string, Map<string, RTCRtpSender>>>(new Map()); // Map<peerId, Map<trackKind, sender>>
   const streamMapRef = useRef<Record<string, MediaStream>>({});
+  const screenStreamMapRef = useRef<Record<string, MediaStream>>({});
 
   const { localStream, isAudioMuted, isVideoMuted, screenStream, isScreenSharing } = useMediaStore();
   const {
@@ -65,6 +67,8 @@ export const useWebRTC = (roomSlug: string, guestName?: string, mediaReady: bool
   const removeRemoteStream = (peerId: string) => {
     delete streamMapRef.current[peerId];
     setRemoteStreams({ ...streamMapRef.current });
+    delete screenStreamMapRef.current[peerId];
+    setRemoteScreenStreams({ ...screenStreamMapRef.current });
     setDiagnostics((prev) => {
       const copy = { ...prev };
       delete copy[peerId];
@@ -323,19 +327,57 @@ export const useWebRTC = (roomSlug: string, guestName?: string, mediaReady: bool
     pc.ontrack = (event) => {
       console.log('Received remote track from peer:', peerId, event.track.kind);
       
-      let remoteStream = streamMapRef.current[peerId];
-      if (!remoteStream) {
-        remoteStream = event.streams[0] || new MediaStream();
-      }
-      
-      if (event.track) {
-        const hasTrack = remoteStream.getTracks().some(t => t.id === event.track.id);
-        if (!hasTrack) {
+      const incomingStream = event.streams[0];
+      if (!incomingStream) return;
+
+      if (event.track.kind === 'audio') {
+        let remoteStream = streamMapRef.current[peerId];
+        if (!remoteStream) {
+          remoteStream = new MediaStream();
+          streamMapRef.current[peerId] = remoteStream;
+        }
+        if (!remoteStream.getAudioTracks().some(t => t.id === event.track.id)) {
           remoteStream.addTrack(event.track);
         }
-      }
+        addRemoteStream(peerId, remoteStream);
+      } 
       
-      addRemoteStream(peerId, remoteStream);
+      else if (event.track.kind === 'video') {
+        let primaryStream = streamMapRef.current[peerId];
+        let screenStream = screenStreamMapRef.current[peerId];
+
+        // If this track belongs to a stream we already designated as screen share
+        if (screenStream && incomingStream.id === screenStream.id) {
+          if (!screenStream.getVideoTracks().some(t => t.id === event.track.id)) {
+            screenStream.addTrack(event.track);
+          }
+          setRemoteScreenStreams({ ...screenStreamMapRef.current });
+        } 
+        
+        // If we don't have a primary stream, or this track belongs to the primary stream
+        else if (!primaryStream || incomingStream.id === primaryStream.id) {
+          if (!primaryStream) {
+            primaryStream = new MediaStream();
+            streamMapRef.current[peerId] = primaryStream;
+          }
+          if (!primaryStream.getVideoTracks().some(t => t.id === event.track.id)) {
+            primaryStream.addTrack(event.track);
+          }
+          addRemoteStream(peerId, primaryStream);
+        } 
+        
+        // Otherwise, this is a new video stream, designating it as the screen share!
+        else {
+          if (!screenStream) {
+            screenStream = new MediaStream();
+            screenStreamMapRef.current[peerId] = screenStream;
+          }
+          if (!screenStream.getVideoTracks().some(t => t.id === event.track.id)) {
+            screenStream.addTrack(event.track);
+          }
+          setRemoteScreenStreams({ ...screenStreamMapRef.current });
+        }
+      }
     };
 
     // ICE Connection State Change - Reconnection / ICE Restart Logic
@@ -564,6 +606,8 @@ export const useWebRTC = (roomSlug: string, guestName?: string, mediaReady: bool
     sendersRef.current.clear();
     setRemoteStreams({});
     streamMapRef.current = {};
+    setRemoteScreenStreams({});
+    screenStreamMapRef.current = {};
     setDiagnostics({});
   };
 
@@ -598,6 +642,7 @@ export const useWebRTC = (roomSlug: string, guestName?: string, mediaReady: bool
 
   return {
     remoteStreams,
+    remoteScreenStreams,
     diagnostics,
     sendMessage,
     updateStatus,
