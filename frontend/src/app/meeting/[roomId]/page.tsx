@@ -132,6 +132,8 @@ export default function MeetingRoomPage({ params }: MeetingRoomProps) {
     togglePinParticipant
   } = useMeetingStore();
 
+  const [mediaReady, setMediaReady] = useState(false);
+
   // WebRTC custom hook
   const {
     remoteStreams,
@@ -143,7 +145,7 @@ export default function MeetingRoomPage({ params }: MeetingRoomProps) {
     toggleWaitingReject,
     hostAction,
     emitActiveSpeaker
-  } = useWebRTC(roomId, guestName);
+  } = useWebRTC(roomId, guestName, mediaReady);
 
   // UI state
   const [activeTab, setActiveTab] = useState<'chat' | 'participants' | 'settings' | null>(null);
@@ -157,9 +159,14 @@ export default function MeetingRoomPage({ params }: MeetingRoomProps) {
 
   // Initialize local camera and microphone stream on mount
   useEffect(() => {
-    startLocalStream().catch((err) => {
-      console.warn('Meeting room media stream acquisition failed:', err);
-    });
+    startLocalStream()
+      .then(() => {
+        setMediaReady(true);
+      })
+      .catch((err) => {
+        console.warn('Meeting room media stream acquisition failed:', err);
+        setMediaReady(true); // Proceed to join view-only
+      });
     return () => {
       stopLocalStream();
     };

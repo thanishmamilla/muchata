@@ -25,7 +25,7 @@ export interface PeerDiagnostics {
   fps: number;
 }
 
-export const useWebRTC = (roomSlug: string, guestName?: string) => {
+export const useWebRTC = (roomSlug: string, guestName?: string, mediaReady: boolean = false) => {
   const [remoteStreams, setRemoteStreams] = useState<Record<string, MediaStream>>({});
   const [diagnostics, setDiagnostics] = useState<Record<string, PeerDiagnostics>>({});
   
@@ -74,7 +74,7 @@ export const useWebRTC = (roomSlug: string, guestName?: string) => {
 
   // 1. Initialize Socket.IO connection
   useEffect(() => {
-    if (!roomSlug) return;
+    if (!roomSlug || !mediaReady) return;
 
     // Use a short delay before connecting to prevent React StrictMode double-mount from aborting the connection handshake and logging warnings.
     const connectTimeout = setTimeout(() => {
@@ -257,7 +257,7 @@ export const useWebRTC = (roomSlug: string, guestName?: string) => {
         socketRef.current = null;
       }
     };
-  }, [roomSlug, accessToken, guestName]);
+  }, [roomSlug, accessToken, guestName, mediaReady]);
 
   // 2. WebRTC Peer Connection Core Logic
   const initiatePeerConnection = (peerId: string, peerName: string, isInitiator: boolean) => {
