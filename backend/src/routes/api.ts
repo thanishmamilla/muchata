@@ -3,6 +3,7 @@ import rateLimit from 'express-rate-limit';
 import { login, logout, me, refresh, register } from '../controllers/auth.controller.js';
 import { createRoom, getRoom, getRoomParticipants, updateRoomSettings } from '../controllers/room.controller.js';
 import { authenticateJWT } from '../middlewares/auth.js';
+import { env } from '../config/env.js';
 
 const apiRouter = Router();
 
@@ -25,6 +26,20 @@ apiRouter.post('/auth/login', authLimiter, login);
 apiRouter.post('/auth/refresh', refresh);
 apiRouter.post('/auth/logout', logout);
 apiRouter.get('/auth/me', authenticateJWT as any, me as any);
+
+// ICE Servers Route (Public)
+apiRouter.get('/ice-servers', (req, res) => {
+  const urls = env.TURN_SERVER_URLS ? env.TURN_SERVER_URLS.split(',') : ['stun:stun.l.google.com:19302'];
+  const servers = urls.map(url => {
+    const server: any = { urls: url.trim() };
+    if (env.TURN_USERNAME && env.TURN_CREDENTIAL && (url.trim().startsWith('turn:') || url.trim().startsWith('turns:'))) {
+      server.username = env.TURN_USERNAME;
+      server.credential = env.TURN_CREDENTIAL;
+    }
+    return server;
+  });
+  res.json({ iceServers: servers });
+});
 
 // Room Routes
 apiRouter.post('/rooms', apiLimiter, authenticateJWT as any, createRoom as any);

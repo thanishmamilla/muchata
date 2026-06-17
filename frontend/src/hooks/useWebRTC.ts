@@ -72,6 +72,47 @@ export const useWebRTC = (roomSlug: string, guestName?: string, mediaReady: bool
     });
   };
 
+  const iceServersRef = useRef<RTCConfiguration>({
+    iceServers: [
+      { urls: 'stun:stun.l.google.com:19302' },
+      { urls: 'stun:stun1.l.google.com:19302' },
+      { urls: 'stun:stun2.l.google.com:19302' },
+    ],
+    iceCandidatePoolSize: 10,
+  });
+
+  // Fetch dynamic ICE configuration on mount
+  useEffect(() => {
+    const fetchIceServers = async () => {
+      try {
+        let backendUrl = process.env.NEXT_PUBLIC_SIGNALING_URL;
+        if (!backendUrl && typeof window !== 'undefined') {
+          const host = window.location.hostname;
+          backendUrl = `http://${host}:5000`;
+        }
+        if (!backendUrl) {
+          backendUrl = 'http://localhost:5000';
+        }
+
+        const res = await fetch(`${backendUrl}/api/ice-servers`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.iceServers && data.iceServers.length > 0) {
+            iceServersRef.current = {
+              iceServers: data.iceServers,
+              iceCandidatePoolSize: 10,
+            };
+            console.log('Loaded dynamic ICE configuration:', data.iceServers);
+          }
+        }
+      } catch (err) {
+        console.warn('Failed to fetch dynamic ICE configuration, falling back to default STUN:', err);
+      }
+    };
+
+    fetchIceServers();
+  }, []);
+
   // 1. Initialize Socket.IO connection
   useEffect(() => {
     if (!roomSlug || !mediaReady) return;
@@ -264,7 +305,7 @@ export const useWebRTC = (roomSlug: string, guestName?: string, mediaReady: bool
     if (peersRef.current.has(peerId)) return;
 
     console.log(`Setting up RTCPeerConnection for ${peerId} (isInitiator: ${isInitiator})`);
-    const pc = new RTCPeerConnection(ICE_SERVERS_CONFIG);
+    const pc = new RTCPeerConnection(iceServersRef.current);
     peersRef.current.set(peerId, pc);
     sendersRef.current.set(peerId, new Map());
 
