@@ -33,6 +33,7 @@ export const useWebRTC = (roomSlug: string, guestName?: string, mediaReady: bool
   const peersRef = useRef<Map<string, RTCPeerConnection>>(new Map());
   const sendersRef = useRef<Map<string, Map<string, RTCRtpSender>>>(new Map()); // Map<peerId, Map<trackKind, sender>>
   const streamMapRef = useRef<Record<string, MediaStream>>({});
+  const initiatorMapRef = useRef<Map<string, boolean>>(new Map());
 
   const { localStream, isAudioMuted, isVideoMuted, screenStream, isScreenSharing } = useMediaStore();
   const {
@@ -174,6 +175,21 @@ export const useWebRTC = (roomSlug: string, guestName?: string, mediaReady: bool
         if (!pc) return;
 
         try {
+          if (signalData.type === 'negotiate') {
+            console.log(`Received negotiation request from receiver ${senderPeerId}`);
+            const localIsInitiator = initiatorMapRef.current.get(senderPeerId);
+            if (localIsInitiator) {
+              console.log(`Creating negotiation offer for receiver ${senderPeerId}`);
+              const offer = await pc.createOffer();
+              await pc.setLocalDescription(offer);
+              socket.emit('signal:send', {
+                targetPeerId: senderPeerId,
+                signalData: { sdp: pc.localDescription },
+              });
+            }
+            return;
+          }
+
           if (signalData.sdp) {
             await pc.setRemoteDescription(new RTCSessionDescription(signalData.sdp));
             
@@ -267,6 +283,7 @@ export const useWebRTC = (roomSlug: string, guestName?: string, mediaReady: bool
     const pc = new RTCPeerConnection(ICE_SERVERS_CONFIG);
     peersRef.current.set(peerId, pc);
     sendersRef.current.set(peerId, new Map());
+    initiatorMapRef.current.set(peerId, isInitiator);
 
     // ICE Candidate handler
     pc.onicecandidate = (event) => {
@@ -419,6 +436,15 @@ export const useWebRTC = (roomSlug: string, guestName?: string, mediaReady: bool
         } else {
           const sender = pc.addTrack(screenVideoTrack, screenStream!);
           peerSenders.set('screen:video', sender);
+          
+          const localIsInitiator = initiatorMapRef.current.get(peerId);
+          if (!localIsInitiator && socketRef.current) {
+            console.log(`Asking initiator ${peerId} to renegotiate for screen sharing`);
+            socketRef.current.emit('signal:send', {
+              targetPeerId: peerId,
+              signalData: { type: 'negotiate' },
+            });
+          }
         }
       } else {
         // Screen share stopped: remove screen share track from PeerConnection
@@ -426,6 +452,15 @@ export const useWebRTC = (roomSlug: string, guestName?: string, mediaReady: bool
           try {
             pc.removeTrack(existingScreenSender);
             peerSenders.delete('screen:video');
+            
+            const localIsInitiator = initiatorMapRef.current.get(peerId);
+            if (!localIsInitiator && socketRef.current) {
+              console.log(`Asking initiator ${peerId} to renegotiate after stopping screen share`);
+              socketRef.current.emit('signal:send', {
+                targetPeerId: peerId,
+                signalData: { type: 'negotiate' },
+              });
+            }
           } catch (e) {
             console.warn('Failed removing screen share track', e);
           }
@@ -497,6 +532,7 @@ export const useWebRTC = (roomSlug: string, guestName?: string, mediaReady: bool
       peersRef.current.delete(peerId);
     }
     sendersRef.current.delete(peerId);
+    initiatorMapRef.current.delete(peerId);
     removeRemoteStream(peerId);
   };
 
@@ -504,6 +540,7 @@ export const useWebRTC = (roomSlug: string, guestName?: string, mediaReady: bool
     peersRef.current.forEach((pc) => pc.close());
     peersRef.current.clear();
     sendersRef.current.clear();
+    initiatorMapRef.current.clear();
     setRemoteStreams({});
     streamMapRef.current = {};
     setDiagnostics({});
