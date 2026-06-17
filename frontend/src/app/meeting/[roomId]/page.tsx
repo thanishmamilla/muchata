@@ -323,6 +323,19 @@ export default function MeetingRoomPage({ params }: MeetingRoomProps) {
     );
   }
 
+  if (!mediaReady) {
+    return (
+      <div className="flex h-screen w-screen flex-col items-center justify-center bg-[#070b13] text-white">
+        <div className="rounded-2xl glass-panel p-8 max-w-sm text-center shadow-2xl flex flex-col items-center">
+          {/* Spin wheel / Loading chakra */}
+          <div className="h-12 w-12 animate-spin rounded-full border-4 border-blue-500 border-t-transparent mb-4"></div>
+          <h2 className="text-lg font-bold">Setting up call...</h2>
+          <p className="text-xs text-slate-400 mt-2">Checking camera and microphone permissions. Please allow access when prompted.</p>
+        </div>
+      </div>
+    );
+  }
+
   // Calculate dynamic layout classes
   const totalGridItems = participants.length + 1; // peers + self
   const getGridCols = () => {
@@ -536,7 +549,7 @@ export default function MeetingRoomPage({ params }: MeetingRoomProps) {
 
         {/* Dynamic Sidebar Drawers */}
         {activeTab && (
-          <div className="w-80 border-l border-slate-900 bg-slate-950 flex flex-col z-20">
+          <div className="w-full md:w-80 border-l border-slate-900 bg-[#070b13] flex flex-col z-30 absolute inset-y-0 right-0 md:relative">
             
             {/* Sidebar Header */}
             <div className="p-4 border-b border-slate-900 flex items-center justify-between">
@@ -724,7 +737,7 @@ export default function MeetingRoomPage({ params }: MeetingRoomProps) {
       </div>
 
       {/* Bottom Control Bar */}
-      <footer className="h-20 bg-slate-950 border-t border-slate-900 px-6 flex items-center justify-between z-10">
+      <footer className="h-16 md:h-20 bg-slate-950 border-t border-slate-900 px-3 md:px-6 flex items-center justify-between z-10">
         
         {/* Left: display metadata */}
         <div className="flex items-center gap-1 hidden md:flex">
@@ -734,60 +747,60 @@ export default function MeetingRoomPage({ params }: MeetingRoomProps) {
         </div>
 
         {/* Center: Main call toggles */}
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2 md:gap-4 mx-auto md:mx-0">
           {/* Microphone */}
           <button
             onClick={handleToggleMic}
-            className={`p-3.5 rounded-full border transition-all cursor-pointer ${isAudioMuted ? 'bg-rose-600/15 border-rose-500/30 text-rose-400 hover:bg-rose-600/25' : 'bg-slate-900 border-slate-800 hover:bg-slate-850 text-slate-300'}`}
+            className={`p-2.5 md:p-3.5 rounded-full border transition-all cursor-pointer ${isAudioMuted ? 'bg-rose-600/15 border-rose-500/30 text-rose-400 hover:bg-rose-600/25' : 'bg-slate-900 border-slate-800 hover:bg-slate-850 text-slate-300'}`}
             title={isAudioMuted ? 'Unmute microphone' : 'Mute microphone'}
           >
-            {isAudioMuted ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
+            {isAudioMuted ? <MicOff className="h-4 w-4 md:h-5 md:w-5" /> : <Mic className="h-4 w-4 md:h-5 md:w-5" />}
           </button>
 
           {/* Camera */}
           <button
             onClick={handleToggleCam}
-            className={`p-3.5 rounded-full border transition-all cursor-pointer ${isVideoMuted ? 'bg-rose-600/15 border-rose-500/30 text-rose-400 hover:bg-rose-600/25' : 'bg-slate-900 border-slate-800 hover:bg-slate-850 text-slate-300'}`}
+            className={`p-2.5 md:p-3.5 rounded-full border transition-all cursor-pointer ${isVideoMuted ? 'bg-rose-600/15 border-rose-500/30 text-rose-400 hover:bg-rose-600/25' : 'bg-slate-900 border-slate-800 hover:bg-slate-850 text-slate-300'}`}
             title={isVideoMuted ? 'Turn webcam on' : 'Turn webcam off'}
           >
-            {isVideoMuted ? <VideoOff className="h-5 w-5" /> : <VideoIcon className="h-5 w-5" />}
+            {isVideoMuted ? <VideoOff className="h-4 w-4 md:h-5 md:w-5" /> : <VideoIcon className="h-4 w-4 md:h-5 md:w-5" />}
           </button>
 
           {/* Screen Share */}
           <button
             onClick={handleToggleScreen}
-            className={`p-3.5 rounded-full border transition-all cursor-pointer ${isScreenSharing ? 'bg-blue-600 border-blue-500 text-white hover:bg-blue-500' : 'bg-slate-900 border-slate-800 hover:bg-slate-850 text-slate-300'}`}
+            className={`p-2.5 md:p-3.5 rounded-full border transition-all cursor-pointer ${isScreenSharing ? 'bg-blue-600 border-blue-500 text-white hover:bg-blue-500' : 'bg-slate-900 border-slate-800 hover:bg-slate-850 text-slate-300'}`}
             title={isScreenSharing ? 'Stop screen sharing' : 'Share screen'}
           >
-            <Monitor className="h-5 w-5" />
+            <Monitor className="h-4 w-4 md:h-5 md:w-5" />
           </button>
 
           {/* Raise Hand */}
           <button
             onClick={handleToggleHand}
-            className={`p-3.5 rounded-full border transition-all cursor-pointer ${localHandRaised ? 'bg-yellow-500/20 border-yellow-500/35 text-yellow-400 hover:bg-yellow-500/30' : 'bg-slate-900 border-slate-800 hover:bg-slate-850 text-slate-300'}`}
+            className={`p-2.5 md:p-3.5 rounded-full border transition-all cursor-pointer ${localHandRaised ? 'bg-yellow-500/20 border-yellow-500/35 text-yellow-400 hover:bg-yellow-500/30' : 'bg-slate-900 border-slate-800 hover:bg-slate-850 text-slate-300'}`}
             title="Raise hand"
           >
-            <Hand className="h-5 w-5" />
+            <Hand className="h-4 w-4 md:h-5 md:w-5" />
           </button>
 
           {/* End Call */}
           <button
             onClick={handleLeaveRoom}
-            className="p-3.5 rounded-full bg-rose-600 hover:bg-rose-500 text-white shadow-lg shadow-rose-600/20 transition-all cursor-pointer border border-rose-550 hover:scale-105"
+            className="p-2.5 md:p-3.5 rounded-full bg-rose-600 hover:bg-rose-500 text-white shadow-lg shadow-rose-600/20 transition-all cursor-pointer border border-rose-550 hover:scale-105"
             title="Leave meeting"
           >
-            <PhoneOff className="h-5 w-5" />
+            <PhoneOff className="h-4 w-4 md:h-5 md:w-5" />
           </button>
         </div>
 
         {/* Right: Drawer toggles */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-1.5 md:gap-3">
           <button
             onClick={() => setActiveTab(activeTab === 'chat' ? null : 'chat')}
-            className={`p-2.5 rounded-lg border transition-all cursor-pointer relative ${activeTab === 'chat' ? 'bg-blue-600/15 border-blue-500/30 text-blue-400' : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white'}`}
+            className={`p-2 md:p-2.5 rounded-lg border transition-all cursor-pointer relative ${activeTab === 'chat' ? 'bg-blue-600/15 border-blue-500/30 text-blue-400' : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white'}`}
           >
-            <MessageSquare className="h-4.5 w-4.5" />
+            <MessageSquare className="h-4 w-4 md:h-4.5 md:w-4.5" />
             {chatMessages.length > 0 && activeTab !== 'chat' && (
               <span className="absolute -top-1 -right-1 h-2 w-2 bg-blue-500 rounded-full"></span>
             )}
@@ -795,9 +808,9 @@ export default function MeetingRoomPage({ params }: MeetingRoomProps) {
 
           <button
             onClick={() => setActiveTab(activeTab === 'participants' ? null : 'participants')}
-            className={`p-2.5 rounded-lg border transition-all cursor-pointer relative ${activeTab === 'participants' ? 'bg-blue-600/15 border-blue-500/30 text-blue-400' : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white'}`}
+            className={`p-2 md:p-2.5 rounded-lg border transition-all cursor-pointer relative ${activeTab === 'participants' ? 'bg-blue-600/15 border-blue-500/30 text-blue-400' : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white'}`}
           >
-            <Users className="h-4.5 w-4.5" />
+            <Users className="h-4 w-4 md:h-4.5 md:w-4.5" />
             {waitingQueue.length > 0 && (
               <span className="absolute -top-1 -right-1 h-3 w-3 bg-amber-500 rounded-full text-[9px] font-black text-slate-950 flex items-center justify-center">
                 {waitingQueue.length}
@@ -808,9 +821,9 @@ export default function MeetingRoomPage({ params }: MeetingRoomProps) {
           {isHost && (
             <button
               onClick={() => setActiveTab(activeTab === 'settings' ? null : 'settings')}
-              className={`p-2.5 rounded-lg border transition-all cursor-pointer ${activeTab === 'settings' ? 'bg-blue-600/15 border-blue-500/30 text-blue-400' : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white'}`}
+              className={`p-2 md:p-2.5 rounded-lg border transition-all cursor-pointer ${activeTab === 'settings' ? 'bg-blue-600/15 border-blue-500/30 text-blue-400' : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white'}`}
             >
-              <Settings className="h-4.5 w-4.5" />
+              <Settings className="h-4 w-4 md:h-4.5 md:w-4.5" />
             </button>
           )}
         </div>
