@@ -33,8 +33,13 @@ const isLocalNetwork = (origin: string) => {
   );
 };
 
+const isVercelOrigin = (origin: string) => {
+  if (!origin) return false;
+  return /^https:\/\/([a-zA-Z0-9-]+\.)*vercel\.app$/.test(origin);
+};
+
 const corsOriginResolver = (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
-  if (!origin || allowedOrigins.includes(origin) || isLocalNetwork(origin)) {
+  if (!origin || allowedOrigins.includes(origin) || isLocalNetwork(origin) || isVercelOrigin(origin)) {
     callback(null, true);
   } else {
     callback(new Error(`Origin ${origin} not allowed by CORS`));
