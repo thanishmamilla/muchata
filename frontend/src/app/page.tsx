@@ -21,7 +21,7 @@ import {
 
 export default function LobbyPage() {
   const router = useRouter();
-  const { user, logout, isAuthenticated } = useAuthStore();
+  const { user, logout, isAuthenticated, accessToken } = useAuthStore();
 
   const getBackendUrl = () => {
     let url = process.env.NEXT_PUBLIC_SIGNALING_URL;
@@ -79,11 +79,16 @@ export default function LobbyPage() {
 
     try {
       const backendUrl = getBackendUrl();
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      if (accessToken) {
+        headers['Authorization'] = `Bearer ${accessToken}`;
+      }
+
       const res = await fetch(`${backendUrl}/api/rooms`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers,
         credentials: 'include',
       });
 
@@ -123,11 +128,16 @@ export default function LobbyPage() {
 
     try {
       const backendUrl = getBackendUrl();
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      if (accessToken) {
+        headers['Authorization'] = `Bearer ${accessToken}`;
+      }
+
       const res = await fetch(`${backendUrl}/api/rooms/${cleanedCode}`, {
         method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers,
         credentials: 'include',
       });
 
@@ -152,7 +162,15 @@ export default function LobbyPage() {
   const handleLogout = async () => {
     try {
       const backendUrl = getBackendUrl();
-      await fetch(`${backendUrl}/api/auth/logout`, { method: 'POST', credentials: 'include' });
+      const headers: Record<string, string> = {};
+      if (accessToken) {
+        headers['Authorization'] = `Bearer ${accessToken}`;
+      }
+      await fetch(`${backendUrl}/api/auth/logout`, { 
+        method: 'POST', 
+        headers,
+        credentials: 'include' 
+      });
       logout();
     } catch (err) {
       console.error(err);

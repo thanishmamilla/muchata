@@ -19,23 +19,31 @@ interface AuthState {
 
 export const useAuthStore = create<AuthState>((set) => ({
   user: null,
-  accessToken: null,
+  accessToken: typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null,
   isAuthenticated: false,
   isLoading: true,
-  login: (user, accessToken) =>
+  login: (user, accessToken) => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('accessToken', accessToken);
+    }
     set({
       user,
       accessToken,
       isAuthenticated: true,
       isLoading: false,
-    }),
-  logout: () =>
+    });
+  },
+  logout: () => {
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('accessToken');
+    }
     set({
       user: null,
       accessToken: null,
       isAuthenticated: false,
       isLoading: false,
-    }),
+    });
+  },
   setLoading: (loading) => set({ isLoading: loading }),
   updateUser: (updatedUser) =>
     set((state) => ({

@@ -14,11 +14,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     const checkSession = async () => {
       try {
         const backendUrl = process.env.NEXT_PUBLIC_SIGNALING_URL || 'http://localhost:5000';
+        const token = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
+        const headers: Record<string, string> = {
+          'Content-Type': 'application/json',
+        };
+        if (token) {
+          headers['Authorization'] = `Bearer ${token}`;
+        }
+
         const res = await fetch(`${backendUrl}/api/auth/me`, {
           method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-          },
+          headers,
           // Send credentials (accessToken cookie)
           credentials: 'include',
         });
