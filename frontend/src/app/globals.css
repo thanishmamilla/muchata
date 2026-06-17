@@ -1,0 +1,130 @@
+@import "tailwindcss";
+
+@layer base {
+  body {
+    background-color: #0b0f19;
+    color: #e2e8f0;
+    font-family: var(--font-outfit), system-ui, -apple-system, sans-serif;
+    overflow-x: hidden;
+  }
+}
+
+/* Glassmorphism Styles */
+.glass-panel {
+  background: rgba(17, 24, 39, 0.7);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.glass-card {
+  background: rgba(30, 41, 59, 0.4);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.glass-input {
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #f8fafc;
+  transition: all 0.2s ease-in-out;
+}
+
+.glass-input:focus {
+  outline: none;
+  border-color: rgba(59, 130, 246, 0.8);
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.25);
+  background: rgba(15, 23, 42, 0.8);
+}
+
+.glass-button {
+  background: rgba(59, 130, 246, 0.1);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  color: #93c5fd;
+  backdrop-filter: blur(4px);
+  transition: all 0.2s ease;
+}
+
+.glass-button:hover:not(:disabled) {
+  background: rgba(59, 130, 246, 0.2);
+  border-color: rgba(59, 130, 246, 0.5);
+  transform: translateY(-1px);
+}
+
+.glass-button:active:not(:disabled) {
+  transform: translateY(0px);
+}
+
+/* Active Speaker Pulsing border animation */
+@keyframes pulse-ring {
+  0% {
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(16, 185, 129, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+  }
+}
+
+.active-speaker-ring {
+  animation: pulse-ring 2s infinite;
+  border-color: rgba(16, 185, 129, 0.8) !important;
+}
+
+/* Sound Wave bars animation for voice indicators */
+@keyframes wave-bounce {
+  0%, 100% {
+    transform: scaleY(0.3);
+  }
+  50% {
+    transform: scaleY(1);
+  }
+}
+
+.voice-bar {
+  display: inline-block;
+  width: 2px;
+  background-color: #10b981;
+  transform-origin: bottom;
+  animation: wave-bounce 1s ease-in-out infinite;
+}
+
+.voice-bar:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.voice-bar:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(15, 23, 42, 0.5);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* Video mirrored for local video feed only */
+.mirror-video {
+  transform: rotateY(180deg);
+}
+
+/* Grid animation layouts */
+.video-grid-transition {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
