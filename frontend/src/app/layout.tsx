@@ -10,7 +10,7 @@ const outfit = Outfit({
 });
 
 export const metadata: Metadata = {
-  title: 'Google Meet Clone - Enterprise Level',
+  title: 'Muchhata.ai',
   description: 'Ultra low-latency HD video conferencing and real-time collaboration workspace built with WebRTC, Socket.IO, and Next.js.',
   viewport: 'width=device-width, initial-scale=1, maximum-scale=1',
 };

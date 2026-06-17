@@ -728,7 +728,7 @@ export default function MeetingRoomPage({ params }: MeetingRoomProps) {
         
         {/* Left: display metadata */}
         <div className="flex items-center gap-1 hidden md:flex">
-          <span className="text-sm font-semibold text-white">Call Workspace</span>
+          <span className="text-sm font-semibold text-white">Muchhata.ai</span>
           <span className="text-slate-600 font-bold">•</span>
           <span className="text-xs text-slate-400 font-semibold font-mono">{roomId}</span>
         </div>

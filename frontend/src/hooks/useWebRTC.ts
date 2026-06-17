@@ -445,6 +445,21 @@ export const useWebRTC = (roomSlug: string, guestName?: string, mediaReady: bool
     });
   }, [localStream]);
 
+  const negotiatePeerConnection = async (peerId: string, pc: RTCPeerConnection) => {
+    try {
+      console.log('Manually negotiating connection for:', peerId);
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+      
+      socketRef.current?.emit('signal:send', {
+        targetPeerId: peerId,
+        signalData: { sdp: pc.localDescription },
+      });
+    } catch (err) {
+      console.error('Failed to negotiate peer connection:', err);
+    }
+  };
+
   // 4. Hot-swapping screen share track
   useEffect(() => {
     peersRef.current.forEach(async (pc, peerId) => {
@@ -460,6 +475,7 @@ export const useWebRTC = (roomSlug: string, guestName?: string, mediaReady: bool
         } else {
           const sender = pc.addTrack(screenVideoTrack, screenStream!);
           peerSenders.set('screen:video', sender);
+          await negotiatePeerConnection(peerId, pc);
         }
       } else {
         // Screen share stopped: remove screen share track from PeerConnection
@@ -467,6 +483,7 @@ export const useWebRTC = (roomSlug: string, guestName?: string, mediaReady: bool
           try {
             pc.removeTrack(existingScreenSender);
             peerSenders.delete('screen:video');
+            await negotiatePeerConnection(peerId, pc);
           } catch (e) {
             console.warn('Failed removing screen share track', e);
           }
